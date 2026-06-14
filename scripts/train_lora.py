@@ -71,6 +71,19 @@ def resolve_device(device: str) -> str:
     return "cpu"
 
 
+def load_musicgen(model_name: str, device: str) -> MusicGen:
+    """Load MusicGen on a device without relying on MusicGen.to()."""
+    try:
+        model = MusicGen.get_pretrained(model_name, device=device)
+    except TypeError:
+        model = MusicGen.get_pretrained(model_name)
+        for attr in ("lm", "compression_model"):
+            module = getattr(model, attr, None)
+            if module is not None and hasattr(module, "to"):
+                module.to(device)
+    return model
+
+
 def linear_module_suffixes(module: torch.nn.Module) -> set[str]:
     return {
         name.split(".")[-1]
@@ -289,8 +302,7 @@ def main():
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"加载模型 {args.model_name} 到 {device} ...")
-    model = MusicGen.get_pretrained(args.model_name)
-    model.to(device)
+    model = load_musicgen(args.model_name, device)
     model.compression_model.eval()
     for param in model.compression_model.parameters():
         param.requires_grad = False

@@ -34,9 +34,22 @@ def resolve_device(device: str) -> str:
 def load_model(model_name: str, device: str = "auto") -> MusicGen:
     device = resolve_device(device)
     print(f"加载预训练模型 {model_name} 到 {device} ...")
-    model = MusicGen.get_pretrained(model_name)
-    model.to(device)
-    model.eval()
+    try:
+        model = MusicGen.get_pretrained(model_name, device=device)
+    except TypeError:
+        model = MusicGen.get_pretrained(model_name)
+        for attr in ("lm", "compression_model"):
+            module = getattr(model, attr, None)
+            if module is not None and hasattr(module, "to"):
+                module.to(device)
+
+    for attr in ("lm", "compression_model"):
+        module = getattr(model, attr, None)
+        if module is not None and hasattr(module, "eval"):
+            module.eval()
+
+    if hasattr(model, "eval"):
+        model.eval()
     return model
 
 

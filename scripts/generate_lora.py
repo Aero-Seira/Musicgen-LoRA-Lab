@@ -33,8 +33,14 @@ def load_lora_model(model_name: str, adapter_path: Path, device: str = "auto") -
 
     device = resolve_device(device)
     print(f"加载基座模型 {model_name} 到 {device} ...")
-    model = MusicGen.get_pretrained(model_name)
-    model.to(device)
+    try:
+        model = MusicGen.get_pretrained(model_name, device=device)
+    except TypeError:
+        model = MusicGen.get_pretrained(model_name)
+        for attr in ("lm", "compression_model"):
+            module = getattr(model, attr, None)
+            if module is not None and hasattr(module, "to"):
+                module.to(device)
 
     print(f"加载 LoRA adapter ← {adapter_path}")
     model.lm = PeftModel.from_pretrained(model.lm, str(adapter_path))
