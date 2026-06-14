@@ -488,3 +488,110 @@ Musicgen-LoRA-Lab/
 ```
 
 不要一开始就把目标锁死在 `MusicGen-Melody 1.5B + 完整 GTZAN + 完整 FAD`。优先完成可运行、可展示、可分析的完整项目，再根据剩余时间和算力升级实验规模。
+
+## 15. archived 目录复用建议
+
+当前仓库中的 `archived/` 是之前的 GTZAN 音乐分类、推荐、数据探索和音频修复项目。它与本项目不是同一个任务，但有较高参考和复用价值。
+
+### 15.1 可直接复用的内容
+
+| 资源 | 路径 | 复用方式 |
+| --- | --- | --- |
+| GTZAN 原始音频 | `archived/genres_original/` | 作为本项目主数据集来源 |
+| 30 秒特征表 | `archived/features_30_sec.csv` | 用于数据介绍、流派统计、可视化和辅助评估 |
+| 3 秒特征表 | `archived/features_3_sec.csv` | 可用于更细粒度的特征分析 |
+| 数据探索脚本 | `archived/data_exploration.py` | 复用流派分布、特征分布、相关性矩阵、雷达图等可视化逻辑 |
+| MusicGen 续写示例 | `archived/musicgen_inpaint.py` | 改造成预训练 MusicGen 的 `20s -> 10s` 基线生成脚本 |
+| 音频修复脚本 | `archived/music_generation.py` | 复用交叉淡入淡出、频谱距离、MSE、SNR、相关系数等函数 |
+| 分类模型脚本 | `archived/music_classification.py` | 可改造为“生成片段流派一致性”辅助评估工具 |
+| 推荐系统脚本 | `archived/music_recommendation.py` | 可用于挑选每个流派的代表性样本，辅助案例分析 |
+| 旧报告和 README | `archived/README_zh.md`、`archived/PROJECT_SUMMARY.md`、`archived/项目完成报告.md` | 可参考数据集介绍、图表组织方式和写作表达 |
+
+### 15.2 数据复用注意事项
+
+`archived/genres_original/` 中真实可用音频为：
+
+- 共 `1000` 条 `.wav`
+- `10` 个流派
+- 每个流派 `100` 条
+
+目录中还包含 macOS 产生的 `._*` 伴生文件，统计或遍历音频时必须排除：
+
+```python
+if path.name.startswith("._"):
+    continue
+```
+
+或在 shell 中使用：
+
+```bash
+find archived/genres_original -type f -name "*.wav" ! -name "._*"
+```
+
+### 15.3 建议迁移方式
+
+不要直接把 `archived/` 整个目录复制进新项目流程，因为其中包含旧虚拟环境、缓存、旧实验输出和大量无关文件。推荐只引用或迁移必要资源。
+
+推荐迁移目标：
+
+```text
+data/
+  raw/
+    gtzan/              <- 来自 archived/genres_original/
+
+scripts/
+  preprocess_gtzan.py   <- 新写，参考 archived 的数据读取方式
+  generate_baseline.py  <- 基于 archived/musicgen_inpaint.py 改造
+  evaluate_audio.py     <- 复用 archived/music_generation.py 的评估函数
+  plot_dataset.py       <- 复用 archived/data_exploration.py 的可视化逻辑
+```
+
+### 15.4 可增强的新实验设计
+
+结合旧项目，可以给新项目增加一个低成本但有说服力的辅助评估：
+
+**流派一致性评估**
+
+1. 使用旧项目的 GTZAN 分类器或重新训练一个轻量分类器。
+2. 对真实后 `10s` 和模型生成后 `10s` 分别提取音频特征。
+3. 预测二者的流派标签。
+4. 统计生成片段是否与原始音频流派一致。
+
+该指标不能替代主观听测和频谱指标，但可以作为“LoRA 是否更贴近 GTZAN 流派分布”的辅助证据。
+
+**传统方法对照**
+
+旧项目中的 `crossfade`、`spectral`、`hybrid` 音频修复方法可以作为非生成式传统基线。报告中可以加入一个小对比：
+
+| 方法 | 类型 | 作用 |
+| --- | --- | --- |
+| Crossfade | 信号处理 | 最简单平滑拼接基线 |
+| Spectral/Hybrid | 信号处理 | 传统音频修复方法 |
+| MusicGen-Melody | 预训练生成模型 | 深度生成基线 |
+| MusicGen-Melody + LoRA | 微调生成模型 | 本项目核心方法 |
+
+如果报告篇幅有限，传统方法只需作为补充案例，不必作为主实验。
+
+### 15.5 不建议复用的内容
+
+以下内容不建议迁移到新项目主流程：
+
+- `archived/.venv/`：旧虚拟环境，体积大且不可移植。
+- `archived/__pycache__/`：Python 缓存。
+- `archived/._*`：macOS 伴生文件。
+- 旧的 `.wav` 修复样本：只适合作为参考，不应混入新实验结果。
+- `audio_inpainting_model.pth`：旧任务的音频修复模型，与 MusicGen LoRA 续写目标不一致。
+
+### 15.6 更新后的最便捷执行策略
+
+有了 `archived/` 后，本项目可以更快落地：
+
+```text
+1. 直接使用 archived/genres_original 作为 GTZAN 原始数据
+2. 参考 archived/musicgen_inpaint.py 改造 MusicGen 基线生成
+3. 复用 archived/music_generation.py 中的频谱/MSE/相关系数评估逻辑
+4. 复用 archived/data_exploration.py 生成数据集介绍图
+5. 在此基础上补充 LoRA 微调和外部音频泛化测试
+```
+
+这样可以减少从零搭建数据和评估工具的工作量，把主要精力集中在 MusicGen 续写、LoRA 微调和实验分析上。

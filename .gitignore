@@ -1,0 +1,27 @@
+# Data (large files, track with git-lfs or exclude)
+data/raw/gtzan/
+data/raw/external/
+data/processed/
+archived/
+
+# Outputs
+outputs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# macOS
+.DS_Store
+._*
+
+# IDE
+.vscode/
+.idea/
+
+# Model weights
+*.pth
+*.pt
+lora_adapter/
