@@ -138,6 +138,7 @@ Musicgen-LoRA-Lab/
 - OpenBayes 上会优先从 `/openbayes/input/input0` 读取 GTZAN；本地则默认读取 `data/raw/gtzan/`。
 - 数据目录可以直接包含 `blues/classical/.../rock`，也可以包一层 `gtzan/` 或 `genres_original/`。
 - 脚本会自动排除 macOS 的 `._*` 文件。
+- GTZAN 常见损坏样本如 `jazz.00054.wav` 会在预处理阶段自动跳过，并记录到 `data/processed/skipped_bad_audio.csv`。
 - `generate_baseline.py` 和 `generate_lora.py` 使用前 `20s` 作为 prompt，MusicGen 总生成时长设为 `30s`，最终只保存后 `10s` 续写片段。
 - `evaluate_audio.py` 会把原始音频的 `20s-30s` 作为真实目标，不会误用前 `10s`。
 - `train_lora.py` 对 MusicGen 的 LM 部分应用 PEFT LoRA，并保存到 `outputs/lora/lora_adapter/`。

@@ -12,6 +12,7 @@ import argparse
 import csv
 import os
 import random
+import shutil
 from pathlib import Path
 
 import torch
@@ -80,6 +81,57 @@ def scan_gtzan(raw_dir: Path) -> dict[str, list[Path]]:
     return genres
 
 
+def is_readable_audio(path: Path) -> tuple[bool, str | None]:
+    """Return whether an audio file can be opened by torchaudio."""
+    try:
+        torchaudio.info(str(path))
+        return True, None
+    except Exception as exc:
+        return False, str(exc)
+
+
+def filter_readable_audio(
+    genres: dict[str, list[Path]],
+    output_dir: Path,
+    strict: bool = False,
+) -> dict[str, list[Path]]:
+    """Filter out corrupt/unreadable audio files and write a skip report."""
+    filtered: dict[str, list[Path]] = {}
+    skipped = []
+
+    for genre, paths in genres.items():
+        valid_paths = []
+        for path in paths:
+            ok, error = is_readable_audio(path)
+            if ok:
+                valid_paths.append(path)
+            else:
+                skipped.append({
+                    "genre": genre,
+                    "path": str(path),
+                    "error": error or "unknown error",
+                })
+        if valid_paths:
+            filtered[genre] = valid_paths
+
+    if skipped:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        skipped_path = output_dir / "skipped_bad_audio.csv"
+        with open(skipped_path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["genre", "path", "error"])
+            writer.writeheader()
+            writer.writerows(skipped)
+
+        print(f"跳过 {len(skipped)} 个无法读取的音频，详情 → {skipped_path}")
+        for item in skipped[:10]:
+            print(f"  跳过: {item['path']} ({item['error']})")
+
+        if strict:
+            raise RuntimeError(f"发现 {len(skipped)} 个坏音频，已按 --strict 停止")
+
+    return filtered
+
+
 def process_audio(
     path: Path,
     target_sr: int = SAMPLE_RATE,
@@ -133,7 +185,12 @@ def split_and_save(
             genre_dir = out_dir / genre
             genre_dir.mkdir(exist_ok=True)
 
-            waveform = process_audio(src_path)
+            try:
+                waveform = process_audio(src_path)
+            except Exception as exc:
+                print(f"警告: 处理失败，跳过 {src_path}: {exc}")
+                continue
+
             out_path = genre_dir / src_path.name
             torchaudio.save(str(out_path), waveform.unsqueeze(0), SAMPLE_RATE)
             records.append({
@@ -165,6 +222,8 @@ def main():
     )
     parser.add_argument("--seed", type=int, default=SEED, help="随机种子")
     parser.add_argument("--limit-per-genre", type=int, default=None, help="调试用：每个流派最多处理 N 条")
+    parser.add_argument("--strict", action="store_true", help="遇到坏音频时直接失败")
+    parser.add_argument("--no-clean", action="store_true", help="不清理已有 processed 输出")
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -175,7 +234,12 @@ def main():
     if raw_dir != args.raw_dir:
         print(f"自动解析 GTZAN 路径: {args.raw_dir} → {raw_dir}")
 
+    if args.output_dir.exists() and not args.no_clean:
+        print(f"清理旧输出: {args.output_dir}")
+        shutil.rmtree(args.output_dir)
+
     genres = scan_gtzan(raw_dir)
+    genres = filter_readable_audio(genres, args.output_dir, strict=args.strict)
     total = sum(len(v) for v in genres.values())
     print(f"发现 {len(genres)} 个流派，共 {total} 条音频")
     if total == 0:
