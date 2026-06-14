@@ -16,7 +16,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ### 一键启动（推荐）
 
-先跑小样本 smoke test，确认环境、模型下载、生成和 LoRA 训练接口都能工作：
+5090 32G 平台建议直接使用项目目标模型 `facebook/musicgen-melody`。先跑小样本 smoke test，确认环境、模型下载、生成和 LoRA 训练接口都能工作：
 
 ```bash
 ./start.sh smoke
@@ -38,6 +38,12 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ```bash
 MODEL_NAME=facebook/musicgen-small SAMPLES_PER_GENRE=5 EPOCHS=2 ./start.sh full
+```
+
+OpenBayes 数据集绑定到 `/openbayes/input/input0` 时无需手动复制数据，脚本会自动优先识别该路径。也可以显式指定：
+
+```bash
+RAW_GTZAN_DIR=/openbayes/input/input0 ./start.sh full
 ```
 
 ### 手动分步运行（uv）
@@ -128,8 +134,11 @@ Musicgen-LoRA-Lab/
 
 - 依赖以 `pyproject.toml` 为准，`requirements.txt` 仅作为传统 pip 环境备用。
 - 默认 Python 版本为 `3.10`，可用 `PYTHON_VERSION=3.11 ./start.sh smoke` 覆盖。
-- `data/raw/gtzan/` 已按 GTZAN 流派结构放置，脚本会自动排除 macOS 的 `._*` 文件。
+- 针对 5090 32G，`uv.lock` 已解析到 PyTorch 2.8 / CUDA 12.8 相关 wheel，避免旧 PyTorch 2.1 对 Blackwell 支持不足的问题。
+- OpenBayes 上会优先从 `/openbayes/input/input0` 读取 GTZAN；本地则默认读取 `data/raw/gtzan/`。
+- 数据目录可以直接包含 `blues/classical/.../rock`，也可以包一层 `gtzan/` 或 `genres_original/`。
+- 脚本会自动排除 macOS 的 `._*` 文件。
 - `generate_baseline.py` 和 `generate_lora.py` 使用前 `20s` 作为 prompt，MusicGen 总生成时长设为 `30s`，最终只保存后 `10s` 续写片段。
 - `evaluate_audio.py` 会把原始音频的 `20s-30s` 作为真实目标，不会误用前 `10s`。
 - `train_lora.py` 对 MusicGen 的 LM 部分应用 PEFT LoRA，并保存到 `outputs/lora/lora_adapter/`。
-- 显存不足时优先用 `MODEL_NAME=facebook/musicgen-small`、`BATCH_SIZE=1`、`MAX_TRAIN_SAMPLES=20` 跑通闭环。
+- 5090 32G 默认使用 `facebook/musicgen-melody`；显存不足时再降级为 `MODEL_NAME=facebook/musicgen-small`、`BATCH_SIZE=1`、`MAX_TRAIN_SAMPLES=20`。

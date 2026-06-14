@@ -13,12 +13,13 @@ Usage:
   ./start.sh [smoke|baseline|full]
 
 Modes:
-  smoke     Small end-to-end run: musicgen-small, 1 sample/genre, 1 epoch.
+  smoke     Small-sample end-to-end run: Melody model, 1 sample/genre, 1 epoch.
   baseline  Pretrained baseline only, no LoRA training.
   full      Full configured workflow. This is the default.
 
 Common overrides:
   MODEL_NAME=facebook/musicgen-small ./start.sh full
+  RAW_GTZAN_DIR=/openbayes/input/input0 ./start.sh full
   SAMPLES_PER_GENRE=5 EPOCHS=2 ./start.sh full
   PYTHON_VERSION=3.10 ./start.sh smoke
 EOF
@@ -44,7 +45,7 @@ fi
 
 case "${MODE}" in
   smoke)
-    export MODEL_NAME="${MODEL_NAME:-facebook/musicgen-small}"
+    export MODEL_NAME="${MODEL_NAME:-facebook/musicgen-melody}"
     export SAMPLES_PER_GENRE="${SAMPLES_PER_GENRE:-1}"
     export EPOCHS="${EPOCHS:-1}"
     export BATCH_SIZE="${BATCH_SIZE:-1}"

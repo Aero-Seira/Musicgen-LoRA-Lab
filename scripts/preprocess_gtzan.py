@@ -10,6 +10,7 @@ GTZAN 数据预处理脚本
 
 import argparse
 import csv
+import os
 import random
 from pathlib import Path
 
@@ -24,6 +25,44 @@ TRAIN_RATIO = 0.70
 VAL_RATIO = 0.15
 TEST_RATIO = 0.15
 SEED = 42
+GTZAN_GENRES = {
+    "blues", "classical", "country", "disco", "hiphop",
+    "jazz", "metal", "pop", "reggae", "rock",
+}
+
+
+def looks_like_gtzan_dir(path: Path) -> bool:
+    """Return True if path directly contains GTZAN genre directories."""
+    if not path.exists() or not path.is_dir():
+        return False
+    child_names = {p.name for p in path.iterdir() if p.is_dir()}
+    return len(child_names & GTZAN_GENRES) >= 5
+
+
+def resolve_gtzan_dir(raw_dir: Path) -> Path:
+    """Resolve common local/OpenBayes GTZAN directory layouts."""
+    candidates = [
+        raw_dir,
+        raw_dir / "gtzan",
+        raw_dir / "GTZAN",
+        raw_dir / "genres_original",
+        Path("/openbayes/input/input0"),
+        Path("/openbayes/input/input0/gtzan"),
+        Path("/openbayes/input/input0/GTZAN"),
+        Path("/openbayes/input/input0/genres_original"),
+    ]
+
+    for candidate in candidates:
+        if looks_like_gtzan_dir(candidate):
+            return candidate
+
+    openbayes_root = Path("/openbayes/input/input0")
+    if openbayes_root.exists():
+        for candidate in openbayes_root.rglob("*"):
+            if candidate.is_dir() and looks_like_gtzan_dir(candidate):
+                return candidate
+
+    return raw_dir
 
 
 def scan_gtzan(raw_dir: Path) -> dict[str, list[Path]]:
@@ -115,8 +154,8 @@ def main():
     parser.add_argument(
         "--raw-dir",
         type=Path,
-        default=Path("data/raw/gtzan"),
-        help="GTZAN 原始音频目录",
+        default=Path(os.environ.get("RAW_GTZAN_DIR", "data/raw/gtzan")),
+        help="GTZAN 原始音频目录；OpenBayes 可用 /openbayes/input/input0",
     )
     parser.add_argument(
         "--output-dir",
@@ -131,10 +170,20 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    print(f"扫描 {args.raw_dir} ...")
-    genres = scan_gtzan(args.raw_dir)
+    raw_dir = resolve_gtzan_dir(args.raw_dir)
+    print(f"扫描 {raw_dir} ...")
+    if raw_dir != args.raw_dir:
+        print(f"自动解析 GTZAN 路径: {args.raw_dir} → {raw_dir}")
+
+    genres = scan_gtzan(raw_dir)
     total = sum(len(v) for v in genres.values())
     print(f"发现 {len(genres)} 个流派，共 {total} 条音频")
+    if total == 0:
+        raise FileNotFoundError(
+            f"没有在 {raw_dir} 找到 GTZAN wav 文件。"
+            "请确认目录直接包含 blues/classical/.../rock 等流派子目录，"
+            "或设置 RAW_GTZAN_DIR=/openbayes/input/input0。"
+        )
 
     # 按流派分层划分，保证 train/val/test 都覆盖所有流派。
     train_files = []

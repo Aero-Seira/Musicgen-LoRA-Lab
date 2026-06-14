@@ -4,6 +4,7 @@ set -euo pipefail
 # Platform runner for MusicGen-LoRA-Lab.
 #
 # Common overrides:
+#   RAW_GTZAN_DIR=/openbayes/input/input0 bash scripts/run_platform.sh
 #   MODEL_NAME=facebook/musicgen-small bash scripts/run_platform.sh
 #   SAMPLES_PER_GENRE=1 EPOCHS=1 MAX_TRAIN_SAMPLES=20 MAX_VAL_SAMPLES=10 bash scripts/run_platform.sh
 #   RUN_LORA=0 bash scripts/run_platform.sh
@@ -21,11 +22,27 @@ MAX_VAL_SAMPLES="${MAX_VAL_SAMPLES:-}"
 RUN_LORA="${RUN_LORA:-1}"
 AMP="${AMP:-1}"
 
+if [[ -z "${RAW_GTZAN_DIR:-}" ]]; then
+  if [[ -d "/openbayes/input/input0" ]]; then
+    RAW_GTZAN_DIR="/openbayes/input/input0"
+  else
+    RAW_GTZAN_DIR="data/raw/gtzan"
+  fi
+fi
+PROCESSED_DIR="${PROCESSED_DIR:-data/processed}"
+
+echo "Model: ${MODEL_NAME}"
+echo "Raw GTZAN dir: ${RAW_GTZAN_DIR}"
+echo "Processed dir: ${PROCESSED_DIR}"
+
 echo "[1/7] Preprocess GTZAN"
-python scripts/preprocess_gtzan.py
+python scripts/preprocess_gtzan.py \
+  --raw-dir "${RAW_GTZAN_DIR}" \
+  --output-dir "${PROCESSED_DIR}"
 
 echo "[2/7] Generate pretrained baseline"
 python scripts/generate_baseline.py \
+  --data-dir "${PROCESSED_DIR}/test" \
   --model-name "${MODEL_NAME}" \
   --device "${DEVICE}" \
   --samples-per-genre "${SAMPLES_PER_GENRE}" \
@@ -33,6 +50,7 @@ python scripts/generate_baseline.py \
 
 echo "[3/7] Evaluate baseline"
 python scripts/evaluate_audio.py \
+  --real-dir "${PROCESSED_DIR}/test" \
   --generated-dirs outputs/baseline \
   --output outputs/metrics/baseline_results.json \
   --csv-output outputs/metrics/baseline_results.csv
@@ -44,6 +62,8 @@ fi
 
 TRAIN_ARGS=(
   --model-name "${MODEL_NAME}"
+  --train-dir "${PROCESSED_DIR}/train"
+  --val-dir "${PROCESSED_DIR}/val"
   --device "${DEVICE}"
   --epochs "${EPOCHS}"
   --batch-size "${BATCH_SIZE}"
@@ -69,12 +89,14 @@ echo "[5/7] Generate LoRA continuations"
 python scripts/generate_lora.py \
   --model-name "${MODEL_NAME}" \
   --adapter-path outputs/lora/lora_adapter \
+  --data-dir "${PROCESSED_DIR}/test" \
   --device "${DEVICE}" \
   --samples-per-genre "${SAMPLES_PER_GENRE}" \
   --skip-existing
 
 echo "[6/7] Evaluate baseline vs LoRA"
 python scripts/evaluate_audio.py \
+  --real-dir "${PROCESSED_DIR}/test" \
   --generated-dirs outputs/baseline outputs/lora \
   --output outputs/metrics/baseline_vs_lora.json \
   --csv-output outputs/metrics/baseline_vs_lora.csv
