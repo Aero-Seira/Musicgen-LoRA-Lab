@@ -39,7 +39,7 @@ override-dependencies = [
     # good target for 5090 CUDA environments.
     "torch>=2.7,<2.9",
     "torchaudio>=2.7,<2.9",
-    "xformers>=0.0.31",
+    "xformers==0.0.32.post2",
 ]
 
 [[tool.uv.index]]

@@ -84,7 +84,7 @@ else
 fi
 
 echo "[setup] Sync dependencies with uv"
-uv sync --python "${PYTHON_VERSION}"
+uv sync --python "${PYTHON_VERSION}" --locked --reinstall-package xformers
 
 echo "[run] Start experiment pipeline"
 uv run --python "${PYTHON_VERSION}" bash scripts/run_platform.sh

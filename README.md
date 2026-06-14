@@ -135,6 +135,7 @@ Musicgen-LoRA-Lab/
 - 依赖以 `pyproject.toml` 为准，`requirements.txt` 仅作为传统 pip 环境备用。
 - 默认 Python 版本为 `3.10`，可用 `PYTHON_VERSION=3.11 ./start.sh smoke` 覆盖。
 - 针对 5090 32G，`uv.lock` 已解析到 PyTorch 2.8 / CUDA 12.8 相关 wheel，避免旧 PyTorch 2.1 对 Blackwell 支持不足的问题。
+- `xformers` 已固定为 `0.0.32.post2`，匹配 PyTorch 2.8；`start.sh` 会强制按锁文件重装 `xformers`，避免误装到面向 PyTorch 2.10 的 wheel。
 - OpenBayes 上会优先从 `/openbayes/input/input0` 读取 GTZAN；本地则默认读取 `data/raw/gtzan/`。
 - 数据目录可以直接包含 `blues/classical/.../rock`，也可以包一层 `gtzan/` 或 `genres_original/`。
 - 脚本会自动排除 macOS 的 `._*` 文件。
