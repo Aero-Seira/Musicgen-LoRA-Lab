@@ -6,6 +6,8 @@ archived/
 
 # Outputs
 outputs/
+reports/listening_test.html
+reports/listening_test_mapping.json
 
 # Python
 __pycache__/
