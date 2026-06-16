@@ -8,6 +8,8 @@ archived/
 outputs/
 reports/listening_test.html
 reports/listening_test_mapping.json
+reports/infer_listening_test.html
+reports/infer_listening_test_mapping.json
 
 # Python
 __pycache__/

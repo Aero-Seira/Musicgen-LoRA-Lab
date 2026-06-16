@@ -402,7 +402,43 @@ data/processed/test/
 
 如果只对外部音频做推理，可以不带 GTZAN 测试集，只准备待续写的 wav 文件。
 
-### 13.2 安装环境
+### 13.2 一键推理与测评脚本
+
+项目提供了面向部署复验的脚本：
+
+```bash
+./infer_eval.sh compare
+```
+
+该脚本不会重新训练 LoRA，而是直接复用已有 adapter。默认流程包括：
+
+1. 使用 `uv` 同步依赖环境。
+2. 若 `data/processed/test` 不存在，自动从 GTZAN 原始目录预处理测试集。
+3. 使用预训练 MusicGen-Melody 生成 baseline 到 `outputs/infer/baseline/`。
+4. 加载 `outputs/lora/lora_adapter/` 生成 LoRA 结果到 `outputs/infer/lora/`。
+5. 计算客观指标，输出到 `outputs/metrics/infer_eval.json` 和 `outputs/metrics/infer_eval.csv`。
+6. 生成 A/B 听测页 `reports/infer_listening_test.html`。
+
+常用模式如下：
+
+```bash
+./infer_eval.sh lora       # 只跑 LoRA 推理和测评
+./infer_eval.sh baseline   # 只跑预训练基线推理和测评
+./infer_eval.sh evaluate   # 只评估已有 outputs/infer 结果
+./infer_eval.sh external   # 对 data/raw/external 下的 wav 做 LoRA 推理
+```
+
+常用参数覆盖方式：
+
+```bash
+DEVICE=cuda SAMPLES_PER_GENRE=3 ./infer_eval.sh compare
+ADAPTER_PATH=outputs/lora/lora_adapter ./infer_eval.sh lora
+EXTERNAL_DIR=data/raw/external EXTERNAL_OUTPUT_DIR=outputs/demo ./infer_eval.sh external
+BASELINE_OUTPUT_DIR=outputs/baseline LORA_OUTPUT_DIR=outputs/lora ./infer_eval.sh evaluate
+MAKE_LISTENING=0 ./infer_eval.sh compare
+```
+
+### 13.3 安装环境
 
 在项目根目录运行：
 
@@ -416,7 +452,7 @@ uv sync --locked
 uv sync --python 3.10 --locked
 ```
 
-### 13.3 使用已训练 LoRA 对 GTZAN 测试集推理
+### 13.4 使用已训练 LoRA 对 GTZAN 测试集推理
 
 运行：
 
@@ -447,7 +483,7 @@ uv run python scripts/generate_lora.py \
 outputs/lora_infer/{genre}/{sample_name}_lora.wav
 ```
 
-### 13.4 对外部音频推理
+### 13.5 对外部音频推理
 
 准备外部 wav 文件：
 
@@ -480,7 +516,7 @@ uv run python scripts/generate_lora.py \
 outputs/external/{source_stem}_lora.wav
 ```
 
-### 13.5 控制生成长度和采样参数
+### 13.6 控制生成长度和采样参数
 
 默认设置为：
 
@@ -515,7 +551,7 @@ input_sec + output_sec
 
 然后只截取最后 `output_sec` 秒作为最终续写结果。因此默认情况下，模型会根据前 20 秒条件生成总共 30 秒音频，最终保存后 10 秒。
 
-### 13.6 Python 代码方式加载 LoRA 模型
+### 13.7 Python 代码方式加载 LoRA 模型
 
 如果不使用命令行脚本，也可以在 Python 中直接加载：
 
