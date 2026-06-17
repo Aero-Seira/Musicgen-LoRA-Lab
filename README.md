@@ -2,6 +2,8 @@
 
 基于 MusicGen-Melody 的音乐音频续写与 LoRA 泛化能力研究
 
+如果是第一次阅读项目，建议先看：[项目通俗说明.md](项目通俗说明.md)。
+
 ## Quick Start
 
 ### 安装 uv
